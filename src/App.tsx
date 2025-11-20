@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare } from 'lucide-react';
-import ProjectSelector from './components/ProjectSelector';
+import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare, Info } from 'lucide-react';
+import ProjectCheckboxes from './components/ProjectCheckboxes';
+import ProjectStatusBar from './components/ProjectStatusBar';
 import TranscriptPanel from './components/TranscriptPanel';
 import SummaryPanel from './components/SummaryPanel';
 import QueryPanel from './components/QueryPanel';
@@ -71,14 +72,14 @@ function App() {
 
   const handleSaveAndClose = async () => {
     if (selectedProjects.length === 0) {
-      alert('Please select at least one project to save to.');
+      alert('Please select at least one Claude Project to save to.');
       return;
     }
 
     setIsSaving(true);
     try {
       await saveTranscript(transcript, summary, selectedProjects);
-      alert('Transcript saved successfully!');
+      alert(`Transcript successfully uploaded to ${selectedProjects.length} Claude Project${selectedProjects.length > 1 ? 's' : ''} and saved to S3!`);
       // Reset state
       setTranscript([]);
       setSummary(null);
@@ -107,18 +108,20 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="px-6 py-3">
+          {/* Top Row - Title and Actions */}
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-3">
               <Brain className="h-8 w-8 text-indigo-600" />
               <h1 className="text-2xl font-bold text-gray-900">Architect Transcript Insights</h1>
+              {selectedProjects.length === 0 && (
+                <div className="flex items-center space-x-2 bg-amber-50 text-amber-700 text-sm px-3 py-1 rounded-lg">
+                  <Info className="h-4 w-4" />
+                  <span>Select Claude Projects below to enable queries and knowledge sync</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-4">
-              <ProjectSelector
-                projects={projects}
-                selectedProjects={selectedProjects}
-                onSelectionChange={setSelectedProjects}
-              />
+            <div className="flex items-center space-x-3">
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -141,8 +144,9 @@ function App() {
               </button>
               <button
                 onClick={handleSaveAndClose}
-                disabled={transcript.length === 0 || isSaving}
+                disabled={transcript.length === 0 || isSaving || selectedProjects.length === 0}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+                title={selectedProjects.length === 0 ? "Please select at least one Claude Project" : ""}
               >
                 {isSaving ? (
                   <>
@@ -158,11 +162,28 @@ function App() {
               </button>
             </div>
           </div>
+          
+          {/* Bottom Row - Claude Projects Checkboxes */}
+          <div className="border-t pt-3">
+            <ProjectCheckboxes
+              projects={projects}
+              selectedProjects={selectedProjects}
+              onSelectionChange={setSelectedProjects}
+              isCompact={true}
+            />
+          </div>
         </div>
+        
+        {/* Project Status Bar */}
+        <ProjectStatusBar 
+          selectedCount={selectedProjects.length}
+          isRecording={isRecording}
+          hasTranscript={transcript.length > 0}
+        />
       </header>
 
       {/* Main Content */}
-      <main className="flex h-[calc(100vh-80px)]">
+      <main className="flex h-[calc(100vh-120px)]">
         {/* Left Panel - Transcript */}
         <div className="w-1/3 border-r bg-white">
           <div className="p-4 border-b bg-gray-50">

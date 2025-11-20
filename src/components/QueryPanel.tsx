@@ -11,6 +11,7 @@ export default function QueryPanel({ selectedProjects }: QueryPanelProps) {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [responses, setResponses] = useState<QueryResponse[]>([]);
+  const [claudeProjects, setClaudeProjects] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,9 +136,13 @@ export default function QueryPanel({ selectedProjects }: QueryPanelProps) {
 
       {/* Query Input */}
       <div className="border-t bg-gray-50 p-4">
-        {selectedProjects.length === 0 && (
+        {selectedProjects.length === 0 ? (
           <div className="mb-2 text-xs text-amber-600 bg-amber-50 p-2 rounded">
-            Select projects above to query their knowledge base
+            Select Claude Projects in the header to query their knowledge base
+          </div>
+        ) : (
+          <div className="mb-2 text-xs text-green-700 bg-green-50 p-2 rounded">
+            Querying {selectedProjects.length} Claude Project{selectedProjects.length > 1 ? 's' : ''}: {selectedProjects.join(', ')}
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex space-x-2">

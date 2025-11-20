@@ -289,9 +289,11 @@ Access the application at `http://localhost:3000`
 
 ### Starting a Meeting Transcription
 
-1. **Select Claude Projects**: Choose one or more Claude Projects from the dropdown to:
-   - Query against their knowledge base during the meeting
-   - Upload the full transcript to these projects after the meeting
+1. **Select Claude Projects**: Check the boxes for Claude Projects in the header bar to:
+   - ✅ Enable queries against their knowledge base
+   - ✅ Upload the full transcript to these projects
+   - ✅ Build cumulative knowledge over time
+   - Each checked project will receive the complete transcript
 2. **Start Recording**: Click the "Start Recording" button to begin transcription
 3. **Grant Microphone Access**: Allow browser access to your microphone when prompted
 
@@ -330,6 +332,30 @@ Access the application at `http://localhost:3000`
 
 This tool deeply integrates with Claude Projects to build your knowledge base:
 
+### Visual Project Selection
+
+```
+Header Bar:
+┌─────────────────────────────────────────────────────────────────────┐
+│  🧠 Architect Transcript Insights         [🎤 Start] [💾 Save & Close]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Claude Projects: ☑ AWS Architecture  ☑ Microservices  ☐ Security   │
+│                  ☑ Data Platform     ☐ DevOps        ☐ Serverless  │
+│                                                      [3 selected]   │
+└─────────────────────────────────────────────────────────────────────┘
+                            ↓
+         Selected projects will receive full transcripts
+                            ↓
+    ┌──────────────┬──────────────┬──────────────┐
+    │     AWS      │ Microservices│     Data     │
+    │ Architecture │              │   Platform   │
+    └──────────────┴──────────────┴──────────────┘
+           ↑              ↑              ↑
+    Full Transcript  Full Transcript  Full Transcript
+    + Summary       + Summary       + Summary
+    + Metadata      + Metadata      + Metadata
+```
+
 ### What Gets Uploaded
 - **Full Transcripts**: Complete, unedited meeting transcripts (not just summaries)
 - **Rich Metadata**: Speaker information, timestamps, confidence scores
@@ -342,15 +368,36 @@ This tool deeply integrates with Claude Projects to build your knowledge base:
 3. **Pattern Recognition**: Claude learns your team's terminology and patterns
 4. **Architecture Evolution**: Track how your architecture decisions evolve over time
 
+### Project-Specific Benefits
+
+| Claude Project | Use Case | Knowledge Built |
+|----------------|----------|-----------------|
+| AWS Architecture | Cloud design patterns | VPC configs, service selection, scaling decisions |
+| Microservices | Service decomposition | API contracts, service boundaries, communication patterns |
+| Security | Compliance & threats | Security controls, audit requirements, threat models |
+| Data Platform | Data architecture | ETL pipelines, data models, analytics requirements |
+| DevOps | CI/CD & automation | Pipeline configs, deployment strategies, monitoring |
+| Serverless | Event-driven design | Lambda patterns, event flows, cost optimization |
+
 ## 🎨 User Interface Layout
 
 ```mermaid
 graph TB
-    subgraph "Header Bar"
-        LOGO[App Logo]
-        PROJECTS[Project Selector]
-        RECORD[Record Button]
-        SAVE[Save & Close]
+    subgraph "Header Bar - Two Rows"
+        subgraph "Top Row"
+            LOGO[App Logo & Title]
+            RECORD[Record Button]
+            SAVE[Save & Close]
+        end
+        
+        subgraph "Bottom Row - Claude Projects"
+            CHECK1[☑ AWS Architecture]
+            CHECK2[☑ Microservices]
+            CHECK3[☐ Security]
+            CHECK4[☐ Data Platform]
+            CHECK5[☑ DevOps]
+            COUNT[3 selected]
+        end
     end
     
     subgraph "Main Interface - 3 Panel Layout"
