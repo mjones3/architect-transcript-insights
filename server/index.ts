@@ -6,6 +6,7 @@ import { createServer } from 'http';
 import transcribeRoutes from './routes/transcribe';
 import aiRoutes from './routes/ai';
 import storageRoutes from './routes/storage';
+import claudeRoutes from './routes/claude';
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/api/transcribe', transcribeRoutes);
 app.use('/api', aiRoutes);
 app.use('/api', storageRoutes);
+app.use('/api/claude', claudeRoutes);
 
 // WebSocket handling for real-time transcription
 wss.on('connection', (ws) => {

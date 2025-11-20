@@ -6,7 +6,7 @@ import SummaryPanel from './components/SummaryPanel';
 import QueryPanel from './components/QueryPanel';
 import { TranscriptEntry, Project, MeetingSummary } from './types';
 import { startTranscription, stopTranscription } from './services/transcription';
-import { generateSummary } from './services/ai';
+import { generateSummary, getClaudeProjects } from './services/ai';
 import { saveTranscript } from './services/storage';
 
 function App() {
@@ -14,14 +14,32 @@ function App() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [summary, setSummary] = useState<MeetingSummary | null>(null);
-  const [projects] = useState<Project[]>([
-    { id: '1', name: 'Project Alpha', description: 'Cloud migration initiative' },
-    { id: '2', name: 'Project Beta', description: 'Microservices architecture' },
-    { id: '3', name: 'Project Gamma', description: 'Data platform modernization' },
-    { id: '4', name: 'Project Delta', description: 'Security infrastructure' },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const transcriptionRef = useRef<any>(null);
+
+  // Load Claude Projects on component mount
+  useEffect(() => {
+    loadClaudeProjects();
+  }, []);
+
+  const loadClaudeProjects = async () => {
+    try {
+      const claudeProjects = await getClaudeProjects();
+      setProjects(claudeProjects);
+    } catch (error) {
+      console.error('Failed to load Claude projects:', error);
+      // Use fallback projects if Claude Projects API fails
+      setProjects([
+        { id: 'aws-architecture', name: 'AWS Architecture Best Practices', description: 'Cloud architecture patterns and solutions' },
+        { id: 'microservices', name: 'Microservices Design', description: 'Microservices patterns and implementation' },
+        { id: 'security', name: 'Security & Compliance', description: 'Security best practices and compliance requirements' },
+        { id: 'data-platform', name: 'Data Platform', description: 'Data architecture and analytics solutions' },
+        { id: 'devops', name: 'DevOps & CI/CD', description: 'DevOps practices and automation' },
+        { id: 'serverless', name: 'Serverless Architecture', description: 'Serverless patterns and best practices' },
+      ]);
+    }
+  };
 
   const handleStartRecording = async () => {
     try {

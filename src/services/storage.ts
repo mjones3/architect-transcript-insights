@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { TranscriptEntry, MeetingSummary } from '../types';
+import { uploadToClaudeProjects } from './ai';
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
@@ -11,9 +12,10 @@ export async function saveTranscript(
   const timestamp = new Date().toISOString();
   const filename = `meeting-transcript-${timestamp.replace(/[:.]/g, '-')}.md`;
 
-  const markdownContent = generateMarkdown(transcript, summary, projectIds);
+  const markdownContent = generateMarkdown(transcript, summary, projectIds, true); // true for full transcript
 
   try {
+    // Save to S3
     await axios.post(`${API_BASE_URL}/save`, {
       filename,
       content: markdownContent,
@@ -25,6 +27,10 @@ export async function saveTranscript(
         hasArchitectureItems: summary?.architectureItems && summary.architectureItems.length > 0
       }
     });
+    
+    // Upload full transcript to Claude Projects
+    await uploadToClaudeProjects(transcript, summary, projectIds);
+    
   } catch (error) {
     console.error('Failed to save transcript:', error);
     // For development, save locally
@@ -35,7 +41,8 @@ export async function saveTranscript(
 function generateMarkdown(
   transcript: TranscriptEntry[],
   summary: MeetingSummary | null,
-  projectIds: string[]
+  projectIds: string[],
+  includeFullTranscript: boolean = true
 ): string {
   const timestamp = new Date().toISOString();
   let markdown = `# Meeting Transcript\n\n`;

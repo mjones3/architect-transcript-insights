@@ -1,6 +1,6 @@
 # Architect Transcript Insights Tool
 
-A powerful real-time meeting transcription and insights tool designed for AWS Solutions Architects. This tool uses AWS Transcribe for live transcription with speaker identification, AWS Bedrock for AI-powered summaries and architecture insights, and provides an intuitive interface for querying project knowledge.
+A powerful real-time meeting transcription and insights tool designed for AWS Solutions Architects. This tool uses AWS Transcribe for live transcription with speaker identification, **Anthropic Claude API directly** for AI-powered summaries and architecture insights, and provides an intuitive interface for querying your **Claude Projects** knowledge base. Full transcripts are automatically uploaded to your Claude Projects for comprehensive knowledge management.
 
 ## 🏗️ System Architecture
 
@@ -17,10 +17,15 @@ graph TB
         WSS[WebSocket Server]
     end
     
+    subgraph "AI Services"
+        CLAUDE[Anthropic Claude API<br/>3.5 Sonnet]
+        PROJECTS[Claude Projects<br/>Knowledge Base]
+    end
+    
     subgraph "AWS Services"
         TRANSCRIBE[AWS Transcribe<br/>Streaming]
-        BEDROCK[AWS Bedrock<br/>Claude 3 Sonnet]
         S3[S3 Bucket<br/>Transcript Storage]
+        BEDROCK[AWS Bedrock<br/>Fallback]
     end
     
     MIC --> UI
@@ -28,17 +33,21 @@ graph TB
     WS <--> WSS
     WSS --> API
     API --> TRANSCRIBE
-    API --> BEDROCK
+    API --> CLAUDE
+    API --> PROJECTS
     API --> S3
+    API -.-> BEDROCK
     
     TRANSCRIBE -.-> WSS
-    BEDROCK -.-> API
+    CLAUDE -.-> API
+    PROJECTS <-.-> CLAUDE
     S3 -.-> API
 
     style UI fill:#e1f5fe
     style TRANSCRIBE fill:#fff3e0
-    style BEDROCK fill:#f3e5f5
-    style S3 fill:#e8f5e8
+    style CLAUDE fill:#f3e5f5
+    style PROJECTS fill:#e8f5e8
+    style S3 fill:#e0f2f1
 ```
 
 ## 🔄 Data Flow
@@ -153,25 +162,32 @@ flowchart TD
 
 - **🎤 Live Transcription**: Real-time meeting transcription using AWS Transcribe with automatic speaker identification
 - **👥 Speaker Diarization**: Automatically identifies and labels different speakers based on voice characteristics
-- **📊 AI-Powered Summaries**: Generates meeting summaries with key points, architecture decisions, and action items using AWS Bedrock
-- **🏗️ Architecture Focus**: Automatically highlights and categorizes architecture-related discussions
-- **🔍 Knowledge Query**: Query project knowledge and get answers based on AWS Well-Architected Framework
-- **💾 Multi-Project Support**: Select and save transcripts to multiple projects simultaneously
-- **📁 Cloud Storage**: Automatically saves enriched transcripts to S3 with project tagging
+- **🤖 Claude AI Integration**: Direct integration with Anthropic Claude 3.5 Sonnet for superior AI-powered summaries
+- **📚 Claude Projects**: Query and update your Claude Projects knowledge base with full meeting transcripts
+- **🏗️ Architecture Focus**: Automatically highlights and categorizes architecture-related discussions in **BOLD**
+- **🔍 Knowledge Query**: Query your Claude Projects and get answers based on your accumulated project knowledge
+- **💾 Dual Storage**: Full transcripts saved to both Claude Projects (for AI knowledge) and S3 (for archival)
+- **📝 Complete Transcripts**: Uploads FULL transcripts (not just summaries) to Claude Projects for comprehensive knowledge
 
 ## Prerequisites
 
 - Node.js 18+ and npm
+- **Anthropic API Key** - For Claude AI integration
 - AWS Account with appropriate permissions
 - AWS CLI configured (optional, for deployment)
 - Modern web browser with microphone access
 
-## AWS Services Required
+## Services Required
 
+### Primary AI Service
+1. **Anthropic Claude API** - Direct Claude 3.5 Sonnet integration for summaries and queries
+2. **Claude Projects** - Your knowledge base for architecture patterns and project context
+
+### AWS Services
 1. **AWS Transcribe** - For real-time speech-to-text
-2. **AWS Bedrock** - For AI summaries and knowledge queries (Claude model)
-3. **AWS S3** - For transcript storage
-4. **AWS IAM** - For service permissions
+2. **AWS S3** - For transcript archival storage
+3. **AWS IAM** - For service permissions
+4. **AWS Bedrock** (Optional) - Fallback for Claude API if needed
 
 ## Quick Start
 
@@ -188,21 +204,28 @@ cd architect-transcript-insights
 npm install
 ```
 
-### 3. Configure AWS Credentials
+### 3. Configure API Credentials
 
-Copy the environment template and add your AWS credentials:
+Copy the environment template and add your credentials:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your AWS credentials:
+Edit `.env` with your API keys:
 
 ```env
+# Primary - Anthropic Claude
+ANTHROPIC_API_KEY=your-anthropic-api-key
+
+# AWS Services
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-access-key-id
 AWS_SECRET_ACCESS_KEY=your-secret-access-key
 S3_BUCKET_NAME=architect-transcripts
+
+# Claude Projects to sync with
+CLAUDE_PROJECT_IDS=aws-architecture,microservices,security
 ```
 
 ### 4. Set Up AWS Resources
@@ -266,7 +289,9 @@ Access the application at `http://localhost:3000`
 
 ### Starting a Meeting Transcription
 
-1. **Select Projects**: Choose one or more projects from the dropdown to associate with the transcript
+1. **Select Claude Projects**: Choose one or more Claude Projects from the dropdown to:
+   - Query against their knowledge base during the meeting
+   - Upload the full transcript to these projects after the meeting
 2. **Start Recording**: Click the "Start Recording" button to begin transcription
 3. **Grant Microphone Access**: Allow browser access to your microphone when prompted
 
@@ -274,25 +299,48 @@ Access the application at `http://localhost:3000`
 
 - **Live Transcript**: View real-time transcription in the left panel
 - **Speaker Identification**: Different speakers are automatically identified and color-coded
-- **Meeting Summary**: The middle panel updates periodically with:
+- **Claude AI Summary**: The middle panel updates periodically with:
   - Key discussion points
-  - Architecture decisions and considerations (highlighted)
-  - Action items with assignees
+  - **Architecture decisions and considerations (in BOLD)**
+  - **Architecture-related action items (in BOLD)**
+  - Regular action items with assignees
 
-### Querying Knowledge
+### Querying Your Claude Projects
 
 - Use the right panel to ask architecture-related questions
-- Queries are answered using AWS Well-Architected Framework principles
-- Select projects to query against their specific knowledge base
+- Queries are answered using:
+  - Your Claude Projects knowledge base (previous transcripts and documentation)
+  - AWS Well-Architected Framework principles
+  - Claude's extensive architecture knowledge
+- Select specific projects to focus the query on their knowledge
 
 ### Saving Transcripts
 
-- Click "Save & Close" to save the enriched transcript
-- Transcripts are saved as Markdown files with:
-  - Full transcript with timestamps
-  - AI-generated summary
-  - Categorized action items
-  - Architecture decisions highlighted
+- Click "Save & Close" to:
+  1. **Upload FULL transcript to selected Claude Projects** (for AI knowledge base)
+  2. **Save to S3** (for archival and compliance)
+  3. **Download locally** (as backup)
+- Transcripts include:
+  - Complete unedited transcript with timestamps and confidence scores
+  - AI-generated executive summary
+  - Categorized action items with architecture items **in bold**
+  - Full metadata and speaker information
+
+## 📚 Claude Projects Integration
+
+This tool deeply integrates with Claude Projects to build your knowledge base:
+
+### What Gets Uploaded
+- **Full Transcripts**: Complete, unedited meeting transcripts (not just summaries)
+- **Rich Metadata**: Speaker information, timestamps, confidence scores
+- **Structured Summaries**: Key points, architecture decisions, action items
+- **Project Context**: Associated with specific Claude Projects for context
+
+### How It Helps
+1. **Knowledge Accumulation**: Each meeting adds to your project's knowledge base
+2. **Contextual Queries**: Future queries can reference past meetings and decisions
+3. **Pattern Recognition**: Claude learns your team's terminology and patterns
+4. **Architecture Evolution**: Track how your architecture decisions evolve over time
 
 ## 🎨 User Interface Layout
 

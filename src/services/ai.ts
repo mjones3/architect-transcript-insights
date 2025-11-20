@@ -5,11 +5,13 @@ const API_BASE_URL = 'http://localhost:3001/api';
 
 export async function generateSummary(transcript: TranscriptEntry[]): Promise<MeetingSummary> {
   try {
-    const response = await axios.post(`${API_BASE_URL}/summarize`, {
+    // Use Claude API directly for summaries
+    const response = await axios.post(`${API_BASE_URL}/claude/summarize`, {
       transcript: transcript.map(entry => ({
         speaker: entry.speaker,
         text: entry.text,
-        timestamp: entry.timestamp
+        timestamp: entry.timestamp,
+        confidence: entry.confidence
       }))
     });
 
@@ -17,8 +19,20 @@ export async function generateSummary(transcript: TranscriptEntry[]): Promise<Me
   } catch (error) {
     console.error('Failed to generate summary:', error);
     
-    // Return mock data for development
-    return generateMockSummary(transcript);
+    // Try AWS Bedrock as fallback
+    try {
+      const response = await axios.post(`${API_BASE_URL}/summarize`, {
+        transcript: transcript.map(entry => ({
+          speaker: entry.speaker,
+          text: entry.text,
+          timestamp: entry.timestamp
+        }))
+      });
+      return response.data;
+    } catch {
+      // Return mock data for development
+      return generateMockSummary(transcript);
+    }
   }
 }
 
@@ -27,18 +41,65 @@ export async function queryArchitectureKnowledge(
   projectIds: string[]
 ): Promise<QueryResponse> {
   try {
-    const response = await axios.post(`${API_BASE_URL}/query`, {
+    // Query Claude with project knowledge
+    const response = await axios.post(`${API_BASE_URL}/claude/query`, {
       question: query,
-      projectIds,
-      context: 'architecture'
+      projectIds
     });
 
     return response.data;
   } catch (error) {
     console.error('Failed to query knowledge base:', error);
     
-    // Return mock response for development
-    return generateMockQueryResponse(query);
+    // Try AWS Bedrock as fallback
+    try {
+      const response = await axios.post(`${API_BASE_URL}/query`, {
+        question: query,
+        projectIds,
+        context: 'architecture'
+      });
+      return response.data;
+    } catch {
+      // Return mock response for development
+      return generateMockQueryResponse(query);
+    }
+  }
+}
+
+export async function uploadToClaudeProjects(
+  transcript: TranscriptEntry[],
+  summary: MeetingSummary | null,
+  projectIds: string[]
+): Promise<void> {
+  const filename = `meeting-transcript-${new Date().toISOString().replace(/[:.]/g, '-')}.md`;
+  
+  try {
+    await axios.post(`${API_BASE_URL}/claude/upload-to-projects`, {
+      transcript,
+      summary,
+      projectIds,
+      filename
+    });
+  } catch (error) {
+    console.error('Failed to upload to Claude Projects:', error);
+    throw error;
+  }
+}
+
+export async function getClaudeProjects(): Promise<any[]> {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/claude/projects`);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to get Claude projects:', error);
+    
+    // Return mock projects for development
+    return [
+      { id: 'aws-architecture', name: 'AWS Architecture Best Practices', description: 'Cloud architecture patterns and solutions' },
+      { id: 'microservices', name: 'Microservices Design', description: 'Microservices patterns and implementation' },
+      { id: 'security', name: 'Security & Compliance', description: 'Security best practices and compliance requirements' },
+      { id: 'data-platform', name: 'Data Platform', description: 'Data architecture and analytics solutions' },
+    ];
   }
 }
 
