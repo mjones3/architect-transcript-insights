@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Infrastructure for Architect Transcript Insights Tool'
+
+Parameters:
+  BucketName:
+    Type: String
+    Default: architect-transcripts
+    Description: Name of the S3 bucket for storing transcripts
+  
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+
+Resources:
+  # S3 Bucket for Transcripts
+  TranscriptBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Application
+          Value: ArchitectTranscriptInsights
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for Application
+  ApplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'TranscriptInsightsRole-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  # IAM Policy for Application
+  ApplicationPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: TranscriptInsightsPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - transcribe:StartStreamTranscription
+              - transcribe:StartStreamTranscriptionWebSocket
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+            Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-sonnet*'
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:PutObjectTagging
+            Resource:
+              - !GetAtt TranscriptBucket.Arn
+              - !Sub '${TranscriptBucket.Arn}/*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: '*'
+      Roles:
+        - !Ref ApplicationRole
+
+  # Instance Profile for EC2
+  ApplicationInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ApplicationRole
+
+  # Security Group
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Transcript Insights application
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3001
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub 'TranscriptInsights-SG-${Environment}'
+
+  # CloudWatch Log Group
+  ApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/application/transcript-insights-${Environment}'
+      RetentionInDays: 30
+
+  # Parameter Store for Configuration
+  DatabaseEndpoint:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/transcript-insights/${Environment}/s3-bucket'
+      Type: String
+      Value: !Ref TranscriptBucket
+      Description: S3 bucket name for transcript storage
+
+Outputs:
+  BucketName:
+    Description: Name of the S3 bucket
+    Value: !Ref TranscriptBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-BucketName'
+
+  RoleArn:
+    Description: ARN of the IAM role
+    Value: !GetAtt ApplicationRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RoleArn'
+
+  InstanceProfileName:
+    Description: Name of the instance profile
+    Value: !Ref ApplicationInstanceProfile
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceProfile'
+
+  SecurityGroupId:
+    Description: ID of the security group
+    Value: !Ref ApplicationSecurityGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-SecurityGroup'
+
+  LogGroupName:
+    Description: CloudWatch Log Group name
+    Value: !Ref ApplicationLogGroup
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroup'
