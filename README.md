@@ -78,45 +78,24 @@ Ensure your AWS account has access to Amazon Transcribe streaming API in your ch
 2. Enable access to Claude 3 Sonnet model
 3. Note: Bedrock is available in limited regions
 
-### 5. Create IAM Policy
+### 5. Deploy Infrastructure with Terraform
 
-Create an IAM user with the following policy:
+Use the included Terraform configuration to set up all AWS resources:
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "transcribe:StartStreamTranscription",
-        "transcribe:StartStreamTranscriptionWebSocket"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "bedrock:InvokeModel"
-      ],
-      "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-sonnet*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:ListBucket",
-        "s3:PutObjectTagging"
-      ],
-      "Resource": [
-        "arn:aws:s3:::architect-transcripts",
-        "arn:aws:s3:::architect-transcripts/*"
-      ]
-    }
-  ]
-}
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your configuration
+terraform init
+terraform plan
+terraform apply
 ```
+
+This will create:
+- S3 bucket with encryption and versioning
+- IAM roles and policies with least privilege
+- Security groups and CloudWatch logging
+- Optional: Cognito, EC2, and Load Balancer
 
 ### 6. Run the Application
 
@@ -187,7 +166,21 @@ architect-transcript-insights/
 
 ## Deployment
 
-### Deploy to AWS EC2
+### Deploy with Terraform (Recommended)
+
+The easiest way to deploy is using the included Terraform configuration:
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your configuration
+terraform init
+terraform apply
+```
+
+See [terraform/README.md](./terraform/README.md) for detailed deployment options.
+
+### Deploy to AWS EC2 (Manual)
 
 1. Launch an EC2 instance (t3.medium or larger)
 2. Install Node.js and npm
@@ -220,31 +213,6 @@ Build and run:
 ```bash
 docker build -t architect-transcript .
 docker run -p 3000:3000 -p 3001:3001 --env-file .env architect-transcript
-```
-
-### Deploy to AWS Amplify
-
-1. Push code to GitHub
-2. Connect GitHub repo to AWS Amplify
-3. Configure build settings:
-
-```yaml
-version: 1
-frontend:
-  phases:
-    preBuild:
-      commands:
-        - npm ci
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: dist
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
 ```
 
 ## Advanced Configuration

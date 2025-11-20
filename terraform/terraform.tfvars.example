@@ -1,0 +1,38 @@
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "production"
+
+# Application Configuration
+app_name    = "architect-transcript-insights"
+bucket_name = "your-unique-architect-transcripts-bucket"
+
+# Logging Configuration
+log_retention_days = 30
+
+# Network Security
+allowed_ips = [
+  "0.0.0.0/0"  # Change to your office IP for better security
+]
+
+# Optional Features
+enable_cognito = false  # Set to true to enable authentication
+deploy_ec2     = false  # Set to true to deploy on EC2
+enable_alb     = false  # Set to true to enable load balancer
+
+# EC2 Configuration (only needed if deploy_ec2 = true)
+instance_type  = "t3.medium"
+key_pair_name  = "your-key-pair-name"
+
+# ALB Configuration (only needed if enable_alb = true)
+vpc_id = "vpc-xxxxxxxxx"
+public_subnet_ids = [
+  "subnet-xxxxxxxxx",
+  "subnet-yyyyyyyyy"
+]
+
+# Additional Tags
+tags = {
+  Project     = "ArchitectTranscriptInsights"
+  Owner       = "YourName"
+  Environment = "production"
+}
