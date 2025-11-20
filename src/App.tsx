@@ -27,18 +27,16 @@ function App() {
   const loadClaudeProjects = async () => {
     try {
       const claudeProjects = await getClaudeProjects();
+      
+      if (claudeProjects.length === 0) {
+        console.warn('No Claude Projects configured. Please add your project IDs to .env file.');
+        alert('⚠️ No Claude Projects configured!\n\nPlease add your actual Claude Project IDs to the CLAUDE_PROJECT_IDS variable in your .env file.\n\nExample:\nCLAUDE_PROJECT_IDS=proj_abc123,proj_def456,proj_ghi789');
+      }
+      
       setProjects(claudeProjects);
     } catch (error) {
       console.error('Failed to load Claude projects:', error);
-      // Use fallback projects if Claude Projects API fails
-      setProjects([
-        { id: 'aws-architecture', name: 'AWS Architecture Best Practices', description: 'Cloud architecture patterns and solutions' },
-        { id: 'microservices', name: 'Microservices Design', description: 'Microservices patterns and implementation' },
-        { id: 'security', name: 'Security & Compliance', description: 'Security best practices and compliance requirements' },
-        { id: 'data-platform', name: 'Data Platform', description: 'Data architecture and analytics solutions' },
-        { id: 'devops', name: 'DevOps & CI/CD', description: 'DevOps practices and automation' },
-        { id: 'serverless', name: 'Serverless Architecture', description: 'Serverless patterns and best practices' },
-      ]);
+      setProjects([]);
     }
   };
 

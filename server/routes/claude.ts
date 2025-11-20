@@ -4,6 +4,7 @@ import {
   queryClaudeProjects,
   uploadTranscriptToClaudeProject
 } from '../services/claudeAI';
+import { getConfiguredProjects } from '../config/claudeProjects';
 
 const router = Router();
 
@@ -73,16 +74,14 @@ router.post('/upload-to-projects', async (req: Request, res: Response) => {
 // List available Claude Projects
 router.get('/projects', async (req: Request, res: Response) => {
   try {
-    // This will be replaced with actual Claude Projects API when available
-    // For now, return mock projects or projects from configuration
-    const projects = [
-      { id: 'aws-architecture', name: 'AWS Architecture Best Practices', description: 'Cloud architecture patterns and solutions' },
-      { id: 'microservices', name: 'Microservices Design', description: 'Microservices patterns and implementation' },
-      { id: 'security', name: 'Security & Compliance', description: 'Security best practices and compliance requirements' },
-      { id: 'data-platform', name: 'Data Platform', description: 'Data architecture and analytics solutions' },
-      { id: 'devops', name: 'DevOps & CI/CD', description: 'DevOps practices and automation' },
-      { id: 'serverless', name: 'Serverless Architecture', description: 'Serverless patterns and best practices' },
-    ];
+    // Get the user's configured Claude Projects
+    const projects = getConfiguredProjects();
+    
+    if (projects.length === 0) {
+      console.warn('⚠️  No Claude Projects configured!');
+      console.warn('Please add your actual Claude Project IDs to CLAUDE_PROJECT_IDS in .env');
+      console.warn('Then optionally configure display names in server/config/claudeProjects.ts');
+    }
     
     res.json(projects);
   } catch (error) {

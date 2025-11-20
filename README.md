@@ -181,7 +181,8 @@ flowchart TD
 
 ### Primary AI Service
 1. **Anthropic Claude API** - Direct Claude 3.5 Sonnet integration for summaries and queries
-2. **Claude Projects** - Your knowledge base for architecture patterns and project context
+2. **Claude Projects** - Your EXISTING Claude Projects for knowledge management
+   - 📖 **[See CLAUDE_SETUP.md](./CLAUDE_SETUP.md) for detailed setup instructions**
 
 ### AWS Services
 1. **AWS Transcribe** - For real-time speech-to-text
@@ -212,21 +213,24 @@ Copy the environment template and add your credentials:
 cp .env.example .env
 ```
 
-Edit `.env` with your API keys:
+Edit `.env` with your API keys and YOUR ACTUAL Claude Project IDs:
 
 ```env
 # Primary - Anthropic Claude
 ANTHROPIC_API_KEY=your-anthropic-api-key
+
+# YOUR ACTUAL Claude Projects (get these from claude.ai)
+# Replace with your real project IDs from your Claude account
+CLAUDE_PROJECT_IDS=proj_abc123,proj_def456,proj_ghi789
 
 # AWS Services
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-access-key-id
 AWS_SECRET_ACCESS_KEY=your-secret-access-key
 S3_BUCKET_NAME=architect-transcripts
-
-# Claude Projects to sync with
-CLAUDE_PROJECT_IDS=aws-architecture,microservices,security
 ```
+
+**Important**: The `CLAUDE_PROJECT_IDS` must be your ACTUAL Claude Project IDs from your claude.ai account, not example names.
 
 ### 4. Set Up AWS Resources
 
