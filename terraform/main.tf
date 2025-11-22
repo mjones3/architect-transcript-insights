@@ -194,11 +194,69 @@ resource "aws_iam_instance_profile" "app_profile" {
   role = aws_iam_role.app_role.name
 }
 
-# Security Group
+# Security Group for EC2 Instance
 resource "aws_security_group" "app_sg" {
   name        = "${var.app_name}-sg-${var.environment}"
-  description = "Security group for Architect Transcript Insights application"
+  description = "Security group for Architect Transcript Insights EC2 instance"
+  vpc_id      = var.vpc_id
 
+  # SSH access
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.ssh_allowed_ips
+  }
+
+  # HTTP from ALB
+  ingress {
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  # Application ports from ALB
+  ingress {
+    description     = "App port from ALB"
+    from_port       = var.app_port
+    to_port         = var.app_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  ingress {
+    description     = "API port from ALB"
+    from_port       = var.api_port
+    to_port         = var.api_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  # Allow all outbound traffic
+  egress {
+    description = "All outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.tags, {
+    Name        = "${var.app_name}-ec2-sg"
+    Environment = var.environment
+  })
+}
+
+# Security Group for ALB
+resource "aws_security_group" "alb_sg" {
+  name        = "${var.app_name}-alb-sg-${var.environment}"
+  description = "Security group for Application Load Balancer"
+  vpc_id      = var.vpc_id
+
+  # HTTP from anywhere
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -207,6 +265,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # HTTPS from anywhere
   ingress {
     description = "HTTPS"
     from_port   = 443
@@ -215,26 +274,19 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    description = "Application Ports"
-    from_port   = 3000
-    to_port     = 3001
-    protocol    = "tcp"
-    cidr_blocks = var.allowed_ips
-  }
-
+  # Allow all outbound traffic
   egress {
-    description = "Allow all outbound"
+    description = "All outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = {
-    Name        = "${var.app_name}-sg"
+  tags = merge(var.tags, {
+    Name        = "${var.app_name}-alb-sg"
     Environment = var.environment
-  }
+  })
 }
 
 # CloudWatch Log Group
@@ -273,10 +325,56 @@ resource "aws_ssm_parameter" "aws_region" {
   }
 }
 
-# Optional: Cognito User Pool for Authentication
+# Route 53 Hosted Zone (assumes melvin-jones.com already exists)
+data "aws_route53_zone" "main" {
+  name         = "melvin-jones.com"
+  private_zone = false
+}
+
+# ACM Certificate for insights.melvin-jones.com
+resource "aws_acm_certificate" "insights_cert" {
+  domain_name       = "insights.melvin-jones.com"
+  validation_method = "DNS"
+
+  subject_alternative_names = [
+    "*.insights.melvin-jones.com"
+  ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "insights.melvin-jones.com"
+    Environment = var.environment
+  }
+}
+
+# Certificate validation
+resource "aws_route53_record" "cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.insights_cert.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = data.aws_route53_zone.main.zone_id
+}
+
+resource "aws_acm_certificate_validation" "insights_cert" {
+  certificate_arn         = aws_acm_certificate.insights_cert.arn
+  validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
+}
+
+# Cognito User Pool for Authentication (now required)
 resource "aws_cognito_user_pool" "app_pool" {
-  count = var.enable_cognito ? 1 : 0
-  
   name = "${var.app_name}-users-${var.environment}"
 
   password_policy {
@@ -295,27 +393,79 @@ resource "aws_cognito_user_pool" "app_pool" {
   }
 
   auto_verified_attributes = ["email"]
-  
-  username_attributes = ["email"]
+  username_attributes      = ["email"]
+
+  # Add admin user configuration
+  admin_create_user_config {
+    allow_admin_create_user_only = false
+    
+    invite_message_template {
+      email_message = "Your username is {username} and temporary password is {####}. Please login at https://insights.melvin-jones.com"
+      email_subject = "Your Architect Transcript Insights account"
+    }
+  }
+
+  # Email verification message
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_message        = "Your verification code for Architect Transcript Insights is {####}"
+    email_subject        = "Verify your Architect Transcript Insights account"
+  }
 
   tags = {
     Name        = "${var.app_name}-cognito"
     Environment = var.environment
+    Domain      = "insights.melvin-jones.com"
   }
 }
 
 resource "aws_cognito_user_pool_client" "app_client" {
-  count = var.enable_cognito ? 1 : 0
-
   name         = "${var.app_name}-client-${var.environment}"
-  user_pool_id = aws_cognito_user_pool.app_pool[0].id
+  user_pool_id = aws_cognito_user_pool.app_pool.id
 
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH"
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
   ]
 
   prevent_user_existence_errors = "ENABLED"
+
+  # OAuth configuration for web app
+  supported_identity_providers = ["COGNITO"]
+  
+  callback_urls = [
+    "https://insights.melvin-jones.com/auth/callback",
+    "http://localhost:3000/auth/callback"
+  ]
+  
+  logout_urls = [
+    "https://insights.melvin-jones.com/auth/logout",
+    "http://localhost:3000/auth/logout"
+  ]
+
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_scopes                 = ["email", "openid", "profile"]
+
+  generate_secret = true
+
+  # Token validity in hours (AWS Provider 5.x default unit)
+  access_token_validity  = 1     # 1 hour (valid: 0.083-24 hours)
+  id_token_validity      = 1     # 1 hour (valid: 0.083-24 hours)
+  refresh_token_validity = 720   # 30 days in hours (valid: 1-87600 hours)
+}
+
+# Cognito User Pool Domain
+resource "aws_cognito_user_pool_domain" "app_domain" {
+  domain       = "insights-${var.environment}-${random_string.cognito_suffix.result}"
+  user_pool_id = aws_cognito_user_pool.app_pool.id
+}
+
+resource "random_string" "cognito_suffix" {
+  length  = 8
+  special = false
+  upper   = false
 }
 
 # Optional: EC2 Instance for deployment
@@ -329,9 +479,10 @@ resource "aws_instance" "app_server" {
   key_name              = var.key_pair_name
 
   user_data = templatefile("${path.module}/user_data.sh", {
-    bucket_name = aws_s3_bucket.transcripts.id
-    region      = var.aws_region
-    environment = var.environment
+    bucket_name  = aws_s3_bucket.transcripts.id
+    region       = var.aws_region
+    environment  = var.environment
+    SERVICE_NAME = "architect-transcript"
   })
 
   tags = {
@@ -351,58 +502,148 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Optional: Application Load Balancer
+# Application Load Balancer (required for custom domain)
 resource "aws_lb" "app_alb" {
-  count = var.enable_alb ? 1 : 0
-
-  name               = "${var.app_name}-alb-${var.environment}"
+  name               = "architect-transcript-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.app_sg.id]
+  security_groups    = [aws_security_group.alb_sg.id]
   subnets            = var.public_subnet_ids
 
   enable_deletion_protection = false
   enable_http2              = true
 
-  tags = {
+  tags = merge(var.tags, {
     Name        = "${var.app_name}-alb"
     Environment = var.environment
-  }
+    Domain      = "insights.melvin-jones.com"
+  })
 }
 
+# Target Group for Frontend (React App)
 resource "aws_lb_target_group" "app_tg" {
-  count = var.enable_alb ? 1 : 0
-
-  name     = "${var.app_name}-tg-${var.environment}"
-  port     = 3000
+  name     = "architect-transcript-app-tg"
+  port     = var.app_port
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
   health_check {
     enabled             = true
     healthy_threshold   = 2
-    unhealthy_threshold = 2
-    timeout             = 5
+    unhealthy_threshold = 3
+    timeout             = 10
+    interval            = 30
+    path                = "/"
+    matcher             = "200"
+    protocol            = "HTTP"
+    port                = "traffic-port"
+  }
+
+  tags = merge(var.tags, {
+    Name        = "${var.app_name}-app-tg"
+    Environment = var.environment
+  })
+}
+
+# Target Group for API Server
+resource "aws_lb_target_group" "api_tg" {
+  name     = "architect-transcript-api-tg"
+  port     = var.api_port
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 10
     interval            = 30
     path                = "/health"
     matcher             = "200"
+    protocol            = "HTTP"
+    port                = "traffic-port"
   }
 
-  tags = {
-    Name        = "${var.app_name}-tg"
+  tags = merge(var.tags, {
+    Name        = "${var.app_name}-api-tg"
     Environment = var.environment
-  }
+  })
 }
 
-resource "aws_lb_listener" "app_listener" {
-  count = var.enable_alb ? 1 : 0
-
-  load_balancer_arn = aws_lb.app_alb[0].arn
+# HTTP Listener (redirects to HTTPS)
+resource "aws_lb_listener" "app_listener_http" {
+  load_balancer_arn = aws_lb.app_alb.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app_tg[0].arn
+    type = "redirect"
+
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
+}
+
+# HTTPS Listener with routing rules
+resource "aws_lb_listener" "app_listener_https" {
+  load_balancer_arn = aws_lb.app_alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-2017-01"
+  certificate_arn   = aws_acm_certificate_validation.insights_cert.certificate_arn
+
+  # Default action - forward to frontend
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app_tg.arn
+  }
+}
+
+# HTTPS Listener Rule for API paths
+resource "aws_lb_listener_rule" "api_rule" {
+  listener_arn = aws_lb_listener.app_listener_https.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/health"]
+    }
+  }
+}
+
+# Route 53 Record for insights.melvin-jones.com
+resource "aws_route53_record" "insights" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "insights.melvin-jones.com"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.app_alb.dns_name
+    zone_id                = aws_lb.app_alb.zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Attach EC2 instance to frontend target group
+resource "aws_lb_target_group_attachment" "app_target_attachment" {
+  count            = var.deploy_ec2 ? 1 : 0
+  target_group_arn = aws_lb_target_group.app_tg.arn
+  target_id        = aws_instance.app_server[0].id
+  port             = var.app_port
+}
+
+# Attach EC2 instance to API target group
+resource "aws_lb_target_group_attachment" "api_target_attachment" {
+  count            = var.deploy_ec2 ? 1 : 0
+  target_group_arn = aws_lb_target_group.api_tg.arn
+  target_id        = aws_instance.app_server[0].id
+  port             = var.api_port
 }

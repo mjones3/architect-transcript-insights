@@ -20,22 +20,33 @@ export interface ProjectConfig {
 
 /**
  * Map your actual Claude Project IDs to friendly display names
- * Replace these with YOUR actual project information
+ * These are YOUR actual Claude Projects from claude.ai
  */
 export const CLAUDE_PROJECT_MAPPING: Record<string, { name: string; description: string }> = {
-  // Example mappings - replace with your actual project IDs and names:
-  // 'proj_abc123': {
-  //   name: 'AWS Architecture',
-  //   description: 'AWS cloud architecture patterns and best practices'
-  // },
-  // 'proj_def456': {
-  //   name: 'Microservices',
-  //   description: 'Microservices design patterns and implementation'
-  // },
-  // 'proj_ghi789': {
-  //   name: 'Security & Compliance',
-  //   description: 'Security controls and compliance requirements'
-  // }
+  '01983cde-a499-73f5-80df-2a28adc95a4b': {
+    name: 'ARC-One SA',
+    description: 'Architecture One Solutions Architecture'
+  },
+  '0198849d-9ff8-77bd-9aaf-53c26ea60dbb': {
+    name: 'API Governance',
+    description: 'API Governance and Standards'
+  },
+  '0198af43-3f19-712a-819e-53048f53527d': {
+    name: 'Collections',
+    description: 'Collections and Data Management'
+  },
+  '01988137-d3be-74da-9c60-ce26f8abf76b': {
+    name: 'SOPs',
+    description: 'Standard Operating Procedures'
+  },
+  '019929e9-0515-767e-aec0-4ec7a754c933': {
+    name: 'Event Governance',
+    description: 'Event Governance and Management'
+  },
+  '019884b1-6d02-76cc-922f-908590186a5d': {
+    name: 'Interface Exception Dashboard',
+    description: 'Interface Exception Monitoring and Dashboard'
+  }
 };
 
 /**

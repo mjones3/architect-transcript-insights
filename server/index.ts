@@ -7,6 +7,8 @@ import transcribeRoutes from './routes/transcribe';
 import aiRoutes from './routes/ai';
 import storageRoutes from './routes/storage';
 import claudeRoutes from './routes/claude';
+import speakerRoutes from './routes/speakers';
+import { authenticateToken, optionalAuth } from './middleware/auth';
 
 dotenv.config();
 
@@ -19,11 +21,17 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Routes
-app.use('/api/transcribe', transcribeRoutes);
-app.use('/api', aiRoutes);
-app.use('/api', storageRoutes);
-app.use('/api/claude', claudeRoutes);
+// Public routes (no authentication required)
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Protected routes (require authentication)
+app.use('/api/transcribe', authenticateToken, transcribeRoutes);
+app.use('/api/ai', authenticateToken, aiRoutes);
+app.use('/api/storage', authenticateToken, storageRoutes);
+app.use('/api/claude', authenticateToken, claudeRoutes);
+app.use('/api/speakers', authenticateToken, speakerRoutes);
 
 // WebSocket handling for real-time transcription
 wss.on('connection', (ws) => {
@@ -53,10 +61,6 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
 
 const PORT = process.env.PORT || 3001;
 

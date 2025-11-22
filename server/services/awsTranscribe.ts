@@ -6,6 +6,7 @@ import {
   TranscriptEvent,
 } from '@aws-sdk/client-transcribe-streaming';
 import { WebSocket } from 'ws';
+import { speakerRecognition } from './speakerRecognition';
 
 const transcribeClient = new TranscribeStreamingClient({
   region: process.env.AWS_REGION || 'us-east-1',
@@ -16,8 +17,7 @@ const transcribeClient = new TranscribeStreamingClient({
 });
 
 const activeStreams = new Map<string, any>();
-const speakerProfiles = new Map<string, string>();
-let speakerCounter = 1;
+const sessionSpeakers = new Map<string, Map<string, string>>(); // sessionId -> speakerLabel -> speakerId
 
 export async function processAudioStream(audioData: string, ws: WebSocket) {
   try {
@@ -59,13 +59,16 @@ export async function processAudioStream(audioData: string, ws: WebSocket) {
             for (const result of results) {
               if (!result.IsPartial && result.Alternatives && result.Alternatives.length > 0) {
                 const alternative = result.Alternatives[0];
-                const speaker = identifySpeaker(alternative.Items);
+                const speakerData = await identifySpeakerAdvanced(alternative.Items, audioBuffer, sessionId);
                 
                 ws.send(JSON.stringify({
                   type: 'transcript',
                   text: alternative.Transcript || '',
-                  speaker: speaker,
+                  speaker: speakerData.speakerName,
+                  speakerId: speakerData.speakerId,
                   confidence: alternative.Items?.[0]?.Confidence || 1,
+                  speakerConfidence: speakerData.confidence,
+                  isNewSpeaker: speakerData.isNewSpeaker,
                   timestamp: new Date().toISOString(),
                 }));
               }
@@ -84,20 +87,57 @@ export async function processAudioStream(audioData: string, ws: WebSocket) {
   }
 }
 
-function identifySpeaker(items?: any[]): string {
-  if (!items || items.length === 0) {
-    return `Speaker ${speakerCounter}`;
+async function identifySpeakerAdvanced(items?: any[], audioData?: Buffer, sessionId?: string): Promise<{
+  speakerId: string;
+  speakerName: string;
+  confidence: number;
+  isNewSpeaker: boolean;
+}> {
+  if (!sessionId) sessionId = 'default';
+  if (!sessionSpeakers.has(sessionId)) {
+    sessionSpeakers.set(sessionId, new Map());
+  }
+  
+  const sessionMap = sessionSpeakers.get(sessionId)!;
+  const speakerLabel = items?.[0]?.Speaker || 'unknown';
+
+  // Check if we've already mapped this AWS Transcribe speaker label in this session
+  if (sessionMap.has(speakerLabel)) {
+    const speakerId = sessionMap.get(speakerLabel)!;
+    const allSpeakers = await speakerRecognition.getAllSpeakers();
+    const speaker = allSpeakers.find(s => s.id === speakerId);
+    
+    return {
+      speakerId,
+      speakerName: speaker?.displayName || speakerId,
+      confidence: 0.9, // High confidence for already mapped speakers
+      isNewSpeaker: false
+    };
   }
 
-  const speakerLabel = items[0]?.Speaker;
-  if (speakerLabel) {
-    if (!speakerProfiles.has(speakerLabel)) {
-      speakerProfiles.set(speakerLabel, `Speaker ${speakerCounter++}`);
-    }
-    return speakerProfiles.get(speakerLabel)!;
-  }
+  try {
+    // Use our advanced speaker recognition
+    const speakerMatch = await speakerRecognition.identifySpeaker(
+      { audioData, items, speakerLabel },
+      sessionId
+    );
 
-  return `Speaker ${speakerCounter}`;
+    // Map the AWS speaker label to our speaker ID for this session
+    sessionMap.set(speakerLabel, speakerMatch.speakerId);
+
+    return speakerMatch;
+  } catch (error) {
+    console.error('Speaker recognition error:', error);
+    
+    // Fallback to basic speaker identification
+    const fallbackName = `Speaker ${speakerLabel}`;
+    return {
+      speakerId: `fallback_${speakerLabel}`,
+      speakerName: fallbackName,
+      confidence: 0.5,
+      isNewSpeaker: true
+    };
+  }
 }
 
 function generateSessionId(): string {

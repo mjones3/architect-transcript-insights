@@ -2,14 +2,23 @@ export interface TranscriptEntry {
   id: string;
   timestamp: Date;
   speaker: string;
+  speakerId?: string;
   text: string;
   confidence?: number;
+  speakerConfidence?: number;
+  isNewSpeaker?: boolean;
 }
 
 export interface Speaker {
   id: string;
   name: string;
-  voiceProfile?: string;
+  displayName: string;
+  confidence: number;
+  sampleCount: number;
+  lastSeen: Date;
+  createdAt: Date;
+  meetings: string[];
+  verified: boolean;
 }
 
 export interface Project {

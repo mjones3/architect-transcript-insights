@@ -1,6 +1,20 @@
-# Architect Transcript Insights Tool
+# 🏗️ Architect Transcript Insights Tool
 
-A powerful real-time meeting transcription and insights tool designed for AWS Solutions Architects. This tool uses AWS Transcribe for live transcription with speaker identification, **Anthropic Claude API directly** for AI-powered summaries and architecture insights, and provides an intuitive interface for querying your **Claude Projects** knowledge base. Full transcripts are automatically uploaded to your Claude Projects for comprehensive knowledge management.
+A powerful, secure real-time meeting transcription and insights platform designed for AWS Solutions Architects. This enterprise-grade tool leverages **Anthropic Claude API directly**, AWS services, and advanced speaker recognition to transform your meetings into actionable architectural knowledge.
+
+**🌐 Live Production URL**: [insights.melvin-jones.com](https://insights.melvin-jones.com)
+
+## 🎯 Key Capabilities
+
+- **🔐 Secure Access**: Enterprise authentication with AWS Cognito and custom domain
+- **🎤 Real-time Transcription**: Live meeting transcription using AWS Transcribe with advanced speaker identification
+- **🧠 Direct Claude Integration**: Uses Anthropic Claude API (not just AWS Bedrock) for superior AI insights  
+- **👥 Advanced Speaker Recognition**: AWS Voice ID integration with manual training and voice pattern learning
+- **📚 Claude Projects Sync**: Upload complete transcripts to your ACTUAL Claude Projects for knowledge building
+- **🏗️ Architecture-Focused AI**: Automatically identifies and highlights architecture decisions and best practices
+- **🔍 Intelligent Query System**: Query your accumulated project knowledge with contextual AI responses
+- **💾 Dual Storage**: Full transcripts saved to both Claude Projects (AI knowledge) and S3 (archival)
+- **🌐 Custom Domain**: Professional deployment at `insights.melvin-jones.com` with SSL/TLS
 
 ## 🏗️ System Architecture
 
@@ -23,28 +37,40 @@ graph TB
     end
     
     subgraph "AWS Services"
+        COGNITO[AWS Cognito<br/>Authentication]
         TRANSCRIBE[AWS Transcribe<br/>Streaming]
+        VOICEID[AWS Voice ID<br/>Speaker Recognition]
         S3[S3 Bucket<br/>Transcript Storage]
+        ALB[Application Load Balancer<br/>insights.melvin-jones.com]
         BEDROCK[AWS Bedrock<br/>Fallback]
     end
     
+    UI --> COGNITO
+    COGNITO -.-> UI
     MIC --> UI
     UI <--> WS
     WS <--> WSS
     WSS --> API
     API --> TRANSCRIBE
+    API --> VOICEID
     API --> CLAUDE
     API --> PROJECTS
     API --> S3
     API -.-> BEDROCK
     
+    ALB --> WSS
+    ALB --> API
     TRANSCRIBE -.-> WSS
+    VOICEID -.-> API
     CLAUDE -.-> API
     PROJECTS <-.-> CLAUDE
     S3 -.-> API
 
     style UI fill:#e1f5fe
+    style COGNITO fill:#fff8e1
+    style ALB fill:#f3e5f5
     style TRANSCRIBE fill:#fff3e0
+    style VOICEID fill:#fce4ec
     style CLAUDE fill:#f3e5f5
     style PROJECTS fill:#e8f5e8
     style S3 fill:#e0f2f1
@@ -56,35 +82,53 @@ graph TB
 sequenceDiagram
     participant U as User
     participant F as Frontend
+    participant AUTH as AWS Cognito
+    participant ALB as Load Balancer
     participant W as WebSocket
     participant A as API Server
     participant T as AWS Transcribe
-    participant B as AWS Bedrock
+    participant V as AWS Voice ID
+    participant C as Claude API
+    participant P as Claude Projects
     participant S as S3
 
+    U->>F: Visit insights.melvin-jones.com
+    F->>AUTH: Authentication Check
+    AUTH-->>F: Login Required
+    U->>AUTH: Sign In/Sign Up
+    AUTH-->>F: JWT Token
+    
     U->>F: Start Recording
-    F->>W: Audio Stream
-    W->>A: Audio Chunks
+    F->>ALB: Authenticated Request
+    ALB->>W: WebSocket Connection
+    W->>A: Audio Stream + JWT
     A->>T: Stream Audio
-    T-->>A: Transcript + Speaker ID
-    A-->>W: Real-time Transcript
+    A->>V: Voice Recognition
+    T-->>A: Raw Transcript
+    V-->>A: Speaker Identity + Confidence
+    A-->>W: Enhanced Transcript
     W-->>F: Update UI
     
-    Note over A,B: Every 30s during meeting
-    A->>B: Generate Summary
-    B-->>A: Summary + Action Items
+    Note over A,C: Every 30s during meeting
+    A->>C: Generate Summary
+    C-->>A: Summary + Architecture Items
     A-->>F: Update Summary Panel
     
     U->>F: Query Architecture
-    F->>A: Question + Projects
-    A->>B: Query with Context
-    B-->>A: Answer + Sources
+    F->>ALB: Authenticated Query
+    ALB->>A: Question + JWT + Selected Projects
+    A->>P: Query Project Knowledge
+    P->>C: Enhanced Context
+    C-->>A: Answer + Sources
     A-->>F: Display Answer
     
     U->>F: Save & Close
-    F->>A: Save Request
-    A->>S: Store MD File
-    S-->>A: Confirmation
+    F->>ALB: Authenticated Save Request
+    ALB->>A: Save + JWT
+    A->>P: Upload Full Transcript
+    A->>S: Store Backup
+    P-->>A: Knowledge Updated
+    S-->>A: Archive Complete
     A-->>F: Success Message
 ```
 
@@ -93,38 +137,56 @@ sequenceDiagram
 ```mermaid
 mindmap
   root((Architect<br/>Transcript<br/>Insights))
+    Security & Authentication
+      AWS Cognito Integration
+      JWT Token Management
+      Email Verification
+      Secure Sessions
     Real-time Processing
       Live Transcription
-      Speaker Identification
-      Audio Streaming
+      Advanced Speaker Recognition
+      Voice Pattern Learning
       WebSocket Updates
     AI Intelligence
+      Direct Claude API
       Meeting Summaries
-      Key Point Extraction
       Architecture Detection
       Action Item Tracking
+    Speaker Recognition
+      AWS Voice ID Integration
+      Manual Training System
+      Voice Characteristics Analysis
+      Persistent Speaker Profiles
     Knowledge Management
-      Project Selection
+      Claude Projects Sync
       Query Interface
       Best Practices
       Source Attribution
     Storage & Export
-      S3 Integration
+      Dual Storage Strategy
       Markdown Export
       Project Tagging
       Version Control
-    Deployment
+    Infrastructure
+      Custom Domain
+      SSL/TLS Encryption
+      Load Balancer
       Terraform IaC
-      Multi-Environment
-      Scalable Architecture
-      Security Best Practices
 ```
 
 ## 🔄 Complete Workflow
 
 ```mermaid
 flowchart TD
-    START([Solution Architect<br/>starts meeting]) --> SELECT[Select Projects<br/>from dropdown]
+    START([User visits<br/>insights.melvin-jones.com]) --> AUTH{Authenticated?}
+    AUTH -->|No| LOGIN[Sign In/Sign Up<br/>with AWS Cognito]
+    AUTH -->|Yes| DASHBOARD[Main Dashboard]
+    LOGIN --> VERIFY{Email Verified?}
+    VERIFY -->|No| EMAIL[Verify Email Address]
+    VERIFY -->|Yes| DASHBOARD
+    EMAIL --> DASHBOARD
+    
+    DASHBOARD --> SELECT[Select Claude Projects<br/>from header checkboxes]
     SELECT --> CLICK[Click 'Start Recording']
     CLICK --> MIC{Microphone<br/>Permission?}
     
@@ -153,6 +215,9 @@ flowchart TD
     SAVE -->|No| CONTINUE[Continue meeting]
     CONTINUE --> QUERY
     
+    style AUTH fill:#fff8e1,stroke:#f57c00
+    style LOGIN fill:#e3f2fd,stroke:#1976d2
+    style DASHBOARD fill:#e8f5e8,stroke:#388e3c
     style HIGHLIGHT fill:#ffeb3b,stroke:#f57f17
     style AI fill:#e3f2fd,stroke:#1976d2
     style COMPLETE fill:#c8e6c9,stroke:#4caf50
@@ -160,21 +225,31 @@ flowchart TD
 
 ## 🎯 Core Features
 
-- **🎤 Live Transcription**: Real-time meeting transcription using AWS Transcribe with automatic speaker identification
-- **👥 Speaker Diarization**: Automatically identifies and labels different speakers based on voice characteristics
-- **🤖 Claude AI Integration**: Direct integration with Anthropic Claude 3.5 Sonnet for superior AI-powered summaries
-- **📚 Claude Projects**: Query and update your Claude Projects knowledge base with full meeting transcripts
-- **🏗️ Architecture Focus**: Automatically highlights and categorizes architecture-related discussions in **BOLD**
-- **🔍 Knowledge Query**: Query your Claude Projects and get answers based on your accumulated project knowledge
-- **💾 Dual Storage**: Full transcripts saved to both Claude Projects (for AI knowledge) and S3 (for archival)
-- **📝 Complete Transcripts**: Uploads FULL transcripts (not just summaries) to Claude Projects for comprehensive knowledge
+- **🔐 Enterprise Security**: 
+  - AWS Cognito authentication with email verification
+  - JWT token-based session management
+  - All API endpoints protected with authentication
+  - Custom domain with SSL/TLS encryption (`insights.melvin-jones.com`)
+- **🎤 Live Transcription**: Real-time meeting transcription using AWS Transcribe streaming API
+- **👥 Advanced Speaker Recognition**: 
+  - AWS Voice ID integration for enhanced accuracy
+  - Voice characteristics analysis (pitch, tone, pace, spectral features)
+  - Manual speaker identification with training feedback
+  - Persistent speaker profiles that learn over time
+- **🤖 Direct Claude Integration**: Anthropic Claude API (not just Bedrock) for superior AI insights
+- **📚 Claude Projects Sync**: Upload complete transcripts to your ACTUAL Claude Projects for knowledge building
+- **🏗️ Architecture-Focused AI**: Automatically highlights architecture decisions and best practices in **BOLD**
+- **🔍 Intelligent Queries**: Query your accumulated project knowledge with contextual AI responses
+- **💾 Dual Storage Strategy**: Full transcripts saved to both Claude Projects (AI knowledge) and S3 (archival)
+- **🎯 Manual Training**: Users can correct speaker identification to improve future accuracy
 
 ## Prerequisites
 
 - Node.js 18+ and npm
 - **Anthropic API Key** - For Claude AI integration
+- **Domain Registration** - `melvin-jones.com` (already registered)
 - AWS Account with appropriate permissions
-- AWS CLI configured (optional, for deployment)
+- AWS CLI configured for deployment
 - Modern web browser with microphone access
 
 ## Services Required
@@ -185,10 +260,15 @@ flowchart TD
    - 📖 **[See CLAUDE_SETUP.md](./CLAUDE_SETUP.md) for detailed setup instructions**
 
 ### AWS Services
-1. **AWS Transcribe** - For real-time speech-to-text
-2. **AWS S3** - For transcript archival storage
-3. **AWS IAM** - For service permissions
-4. **AWS Bedrock** (Optional) - Fallback for Claude API if needed
+1. **AWS Cognito** - User authentication and session management
+2. **Route 53** - DNS management for custom domain
+3. **Certificate Manager** - SSL/TLS certificates for HTTPS
+4. **Application Load Balancer** - Traffic routing and SSL termination
+5. **AWS Transcribe** - For real-time speech-to-text transcription
+6. **AWS Voice ID** - For advanced speaker recognition and enrollment
+7. **AWS S3** - For transcript archival storage and Voice ID audio samples
+8. **AWS IAM** - For service permissions and least-privilege access
+9. **AWS Bedrock** (Optional) - Fallback for Claude API if needed
 
 ## Quick Start
 
@@ -228,6 +308,9 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your-access-key-id
 AWS_SECRET_ACCESS_KEY=your-secret-access-key
 S3_BUCKET_NAME=architect-transcripts
+
+# AWS Voice ID (Optional - for enhanced speaker recognition)
+VOICE_ID_ROLE_ARN=arn:aws:iam::your-account:role/VoiceIDServiceRole
 ```
 
 **Important**: The `CLAUDE_PROJECT_IDS` must be your ACTUAL Claude Project IDs from your claude.ai account, not example names.
@@ -244,11 +327,17 @@ aws s3 mb s3://architect-transcripts --region us-east-1
 
 Ensure your AWS account has access to Amazon Transcribe streaming API in your chosen region.
 
-#### Enable AWS Bedrock
+#### Enable AWS Bedrock (Optional)
 
 1. Go to AWS Bedrock console
 2. Enable access to Claude 3 Sonnet model
 3. Note: Bedrock is available in limited regions
+
+#### Enable AWS Voice ID (Optional)
+
+1. Go to AWS Voice ID console in your region
+2. Note: Voice ID is available in us-east-1, us-west-2, ap-southeast-2, eu-west-1
+3. Create IAM role for Voice ID service access
 
 ### 5. Deploy Infrastructure with Terraform
 
@@ -264,10 +353,14 @@ terraform apply
 ```
 
 This will create:
-- S3 bucket with encryption and versioning
-- IAM roles and policies with least privilege
-- Security groups and CloudWatch logging
-- Optional: Cognito, EC2, and Load Balancer
+- **Custom Domain**: `insights.melvin-jones.com` with SSL certificate
+- **Authentication**: AWS Cognito User Pool with secure login
+- **Load Balancer**: Application Load Balancer with HTTPS redirect
+- **DNS**: Route 53 records pointing to your domain
+- **S3 Storage**: Encrypted bucket with versioning for transcripts
+- **IAM Roles**: Least privilege access policies
+- **Voice ID**: Enhanced speaker recognition domain
+- **Security**: Security groups and CloudWatch logging
 
 ### 6. Run the Application
 
@@ -287,9 +380,20 @@ npm run server
 npm run dev
 ```
 
-Access the application at `http://localhost:3000`
+**Development**: Access at `http://localhost:3000`
+**Production**: Access at `https://insights.melvin-jones.com`
 
 ## Usage Guide
+
+### Authentication & Access
+
+1. **Sign Up/Sign In**: Visit `https://insights.melvin-jones.com`
+   - New users: Create account with email and secure password
+   - Email verification required for account activation
+   - Existing users: Sign in with your credentials
+2. **Secure Session**: Your session is protected with AWS Cognito
+   - Automatic token refresh for seamless experience
+   - Session timeout for enhanced security
 
 ### Starting a Meeting Transcription
 
@@ -303,13 +407,24 @@ Access the application at `http://localhost:3000`
 
 ### During the Meeting
 
-- **Live Transcript**: View real-time transcription in the left panel
-- **Speaker Identification**: Different speakers are automatically identified and color-coded
+- **Live Transcript**: View real-time transcription in the left panel with:
+  - Automatic speaker identification using voice patterns
+  - Visual confidence indicators for speaker recognition
+  - Manual correction buttons for training the AI
+- **Advanced Speaker Recognition**: 
+  - New speakers are automatically detected and flagged
+  - Low-confidence identifications show warning indicators
+  - Users can manually correct misidentified speakers
+  - System learns from corrections to improve future accuracy
 - **Claude AI Summary**: The middle panel updates periodically with:
-  - Key discussion points
+  - Key discussion points and decisions
   - **Architecture decisions and considerations (in BOLD)**
   - **Architecture-related action items (in BOLD)**
   - Regular action items with assignees
+- **Speaker Management**: 
+  - Click the "Speakers" button to manage speaker profiles
+  - View, edit, merge, and delete speaker identities
+  - Train the system with additional voice samples
 
 ### Querying Your Claude Projects
 
@@ -328,9 +443,10 @@ Access the application at `http://localhost:3000`
   3. **Download locally** (as backup)
 - Transcripts include:
   - Complete unedited transcript with timestamps and confidence scores
-  - AI-generated executive summary
+  - Enhanced speaker identification with voice characteristics
+  - AI-generated executive summary with Claude insights
   - Categorized action items with architecture items **in bold**
-  - Full metadata and speaker information
+  - Full speaker profile metadata and voice pattern analysis
 
 ## 📚 Claude Projects Integration
 
@@ -362,9 +478,11 @@ Header Bar:
 
 ### What Gets Uploaded
 - **Full Transcripts**: Complete, unedited meeting transcripts (not just summaries)
-- **Rich Metadata**: Speaker information, timestamps, confidence scores
+- **Enhanced Speaker Data**: Advanced speaker identification with voice characteristics
+- **Rich Metadata**: Speaker information, timestamps, confidence scores, voice patterns
 - **Structured Summaries**: Key points, architecture decisions, action items
 - **Project Context**: Associated with specific Claude Projects for context
+- **Training Data**: Speaker corrections and manual identifications for system learning
 
 ### How It Helps
 1. **Knowledge Accumulation**: Each meeting adds to your project's knowledge base
@@ -407,7 +525,8 @@ graph TB
     subgraph "Main Interface - 3 Panel Layout"
         subgraph "Left Panel"
             LT[Live Transcript]
-            SPEAKERS[Speaker Identification]
+            SPEAKERS[Advanced Speaker Recognition]
+            EDIT[Manual Correction Buttons]
             TIMESTAMP[Timestamps]
         end
         
@@ -493,21 +612,27 @@ graph TD
     SRC --> SERVICES[services/]
     SRC --> TYPES[types.ts]
     
-    COMP --> PROJ[ProjectSelector.tsx]
+    COMP --> PROJ[ProjectCheckboxes.tsx]
     COMP --> TRANS[TranscriptPanel.tsx]
     COMP --> SUMM[SummaryPanel.tsx]
     COMP --> QUERY[QueryPanel.tsx]
+    COMP --> SPEAKER[SpeakerManagement.tsx]
+    COMP --> MANUAL[ManualSpeakerIdentification.tsx]
     
     SERVER --> ROUTES[routes/]
     SERVER --> SSERVICES[services/]
     
-    ROUTES --> AI[ai.ts - Bedrock Integration]
+    ROUTES --> AI[ai.ts - Claude API]
     ROUTES --> STORAGE[storage.ts - S3 Operations]
     ROUTES --> TRANSCRIBE[transcribe.ts - Streaming]
+    ROUTES --> SPEAKERS[speakers.ts - Speaker Management]
     
+    SSERVICES --> CLAUDE[claudeAI.ts]
     SSERVICES --> BEDROCK[awsBedrock.ts]
     SSERVICES --> S3[awsS3.ts]
     SSERVICES --> TRANSC[awsTranscribe.ts]
+    SSERVICES --> VOICEID[awsVoiceId.ts]
+    SSERVICES --> RECOGNITION[speakerRecognition.ts]
     
     TERRAFORM --> MAIN[main.tf]
     TERRAFORM --> VARS[variables.tf]
@@ -571,33 +696,62 @@ docker run -p 3000:3000 -p 3001:3001 --env-file .env architect-transcript
 
 ## Advanced Configuration
 
-### Custom Speaker Profiles
+### Advanced Speaker Recognition
 
-Edit `server/services/awsTranscribe.ts` to add persistent speaker profiles:
+The system includes sophisticated speaker recognition with multiple layers:
 
 ```typescript
-const knownSpeakers = {
-  'voice-id-1': 'John Doe',
-  'voice-id-2': 'Jane Smith'
-};
+// Voice characteristics analysis
+interface VoiceCharacteristics {
+  pitch: number;
+  tone: number;
+  pace: number;
+  accent?: string;
+  spectralCentroid?: number;
+  mfccFeatures?: number[];
+  formantFreqs?: number[];
+}
+
+// AWS Voice ID integration
+await awsSpeakerRecognition.enrollSpeaker(
+  speakerName, 
+  audioSamples, 
+  customSpeakerId
+);
 ```
 
-### Project Knowledge Base
+### Claude Projects Knowledge Base
 
-Integrate with existing knowledge bases by modifying `server/services/awsBedrock.ts`:
+The system directly integrates with your Claude Projects for enhanced knowledge management:
 
 ```typescript
-// Add custom knowledge sources
-const projectKnowledge = await getProjectDocuments(projectIds);
+// Direct Claude API integration
+await uploadTranscriptToClaudeProject(
+  transcript, 
+  summary, 
+  selectedProjectIds, 
+  filename
+);
+
+// Query Claude Projects knowledge
+const response = await queryClaudeProjects(
+  question, 
+  projectIds, 
+  context
+);
 ```
 
 ### Custom AI Prompts
 
-Customize summary generation in `server/services/awsBedrock.ts`:
+Customize summary generation in `server/services/claudeAI.ts`:
 
 ```typescript
-function createSummaryPrompt(transcript) {
-  // Modify prompt for specific focus areas
+function createArchitectureSummaryPrompt(transcript) {
+  return `Analyze this architecture meeting transcript and identify:
+  - **Architecture decisions (in BOLD)**
+  - Technical constraints and trade-offs
+  - **Action items related to architecture (in BOLD)**
+  - Risk assessments and mitigation strategies`;
 }
 ```
 
@@ -615,11 +769,28 @@ function createSummaryPrompt(transcript) {
 2. Check region supports Transcribe streaming
 3. Ensure IAM permissions include transcribe:StartStreamTranscription
 
-### Bedrock Not Available
+### Speaker Recognition Issues
 
-1. Bedrock is only available in certain regions
-2. Ensure Claude model access is enabled
-3. Fall back to mock responses for development
+1. Check AWS Voice ID is enabled in your region
+2. Verify Voice ID IAM role permissions
+3. For low recognition accuracy:
+   - Use manual corrections to train the system
+   - Ensure good audio quality (quiet environment)
+   - Allow time for voice profile building
+
+### Claude API Issues
+
+1. Verify your Anthropic API key is correct
+2. Check your Claude Projects IDs are valid (from claude.ai)
+3. Ensure sufficient API quota for your usage
+4. Bedrock fallback available if Claude API fails
+
+### Voice ID Not Working
+
+1. Ensure AWS Voice ID is available in your region
+2. Check IAM permissions for Voice ID domain creation
+3. Verify S3 bucket access for voice sample storage
+4. System falls back to local voice analysis if Voice ID unavailable
 
 ## 🔒 Security Architecture
 
@@ -740,36 +911,49 @@ timeline
 
 ## ✅ Current Implementation Status
 
-- [x] ✅ Live transcription with AWS Transcribe
-- [x] ✅ Speaker identification and diarization  
-- [x] ✅ Real-time AI summaries with AWS Bedrock
-- [x] ✅ Architecture-focused insights (bold highlighting)
-- [x] ✅ Knowledge query interface
-- [x] ✅ Multi-project selection and tagging
-- [x] ✅ S3 storage with markdown export
-- [x] ✅ Terraform infrastructure as code
-- [x] ✅ Security best practices implementation
-- [x] ✅ Comprehensive documentation
+- [x] ✅ **Custom Domain**: `insights.melvin-jones.com` with SSL/TLS
+- [x] ✅ **Secure Authentication**: AWS Cognito with login requirement
+- [x] ✅ **Protected Routes**: All API endpoints require authentication
+- [x] ✅ Live transcription with AWS Transcribe streaming
+- [x] ✅ Advanced speaker recognition with AWS Voice ID
+- [x] ✅ Voice characteristics analysis and pattern learning
+- [x] ✅ Manual speaker identification with training feedback
+- [x] ✅ Persistent speaker profiles that improve over time
+- [x] ✅ Direct Claude API integration (not just Bedrock)
+- [x] ✅ Claude Projects synchronization for knowledge building
+- [x] ✅ Real-time architecture-focused AI summaries
+- [x] ✅ Intelligent query system with project context
+- [x] ✅ Dual storage strategy (Claude Projects + S3)
+- [x] ✅ Complete speaker management UI
+- [x] ✅ Terraform infrastructure as code with domain setup
+- [x] ✅ Comprehensive security implementation
+- [x] ✅ Full documentation and deployment guides
 
 ## 🚀 Upcoming Features
 
-- [ ] 🔐 AWS Cognito authentication
 - [ ] 🤝 Real-time collaboration features  
+- [ ] 👥 Team workspaces and user management
 - [ ] 📤 Export to Confluence/SharePoint
 - [ ] 🌍 Support multiple languages
 - [ ] 📹 Video recording capability
 - [ ] 📝 Custom vocabulary for technical terms
 - [ ] 🎯 JIRA integration for action items
 - [ ] 📱 Offline mode with sync
+- [ ] 📊 Analytics dashboard and usage metrics
+- [ ] 🔔 Slack/Teams notifications
 
 ## Acknowledgments
 
 Built with:
-- React + TypeScript
-- AWS SDK for JavaScript
-- Tailwind CSS
-- Express.js
-- AWS Transcribe, Bedrock, and S3
+- React + TypeScript for modern frontend
+- Express.js + TypeScript for robust backend
+- AWS SDK for JavaScript v3
+- Anthropic Claude API for superior AI
+- AWS Transcribe for real-time transcription
+- AWS Voice ID for advanced speaker recognition
+- Tailwind CSS for responsive design
+- WebSocket for real-time communication
+- S3 for secure storage
 
 ---
 

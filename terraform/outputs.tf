@@ -35,12 +35,23 @@ output "cloudwatch_log_group" {
 
 output "cognito_user_pool_id" {
   description = "Cognito User Pool ID"
-  value       = var.enable_cognito ? aws_cognito_user_pool.app_pool[0].id : null
+  value       = aws_cognito_user_pool.app_pool.id
 }
 
 output "cognito_client_id" {
   description = "Cognito User Pool Client ID"
-  value       = var.enable_cognito ? aws_cognito_user_pool_client.app_client[0].id : null
+  value       = aws_cognito_user_pool_client.app_client.id
+}
+
+output "cognito_client_secret" {
+  description = "Cognito User Pool Client Secret"
+  value       = aws_cognito_user_pool_client.app_client.client_secret
+  sensitive   = true
+}
+
+output "cognito_domain" {
+  description = "Cognito User Pool Domain"
+  value       = aws_cognito_user_pool_domain.app_domain.domain
 }
 
 output "ec2_instance_id" {
@@ -55,23 +66,36 @@ output "ec2_public_ip" {
 
 output "alb_dns_name" {
   description = "Application Load Balancer DNS name"
-  value       = var.enable_alb ? aws_lb.app_alb[0].dns_name : null
+  value       = aws_lb.app_alb.dns_name
 }
 
 output "alb_zone_id" {
   description = "Application Load Balancer Zone ID"
-  value       = var.enable_alb ? aws_lb.app_alb[0].zone_id : null
+  value       = aws_lb.app_alb.zone_id
+}
+
+output "domain_name" {
+  description = "Custom domain name"
+  value       = "insights.melvin-jones.com"
+}
+
+output "ssl_certificate_arn" {
+  description = "SSL Certificate ARN"
+  value       = aws_acm_certificate_validation.insights_cert.certificate_arn
 }
 
 # Configuration values for environment variables
 output "environment_config" {
   description = "Environment configuration for the application"
   value = {
-    AWS_REGION         = var.aws_region
-    S3_BUCKET_NAME     = aws_s3_bucket.transcripts.id
+    AWS_REGION           = var.aws_region
+    S3_BUCKET_NAME       = aws_s3_bucket.transcripts.id
     CLOUDWATCH_LOG_GROUP = aws_cloudwatch_log_group.app_logs.name
-    COGNITO_USER_POOL_ID = var.enable_cognito ? aws_cognito_user_pool.app_pool[0].id : null
-    COGNITO_CLIENT_ID    = var.enable_cognito ? aws_cognito_user_pool_client.app_client[0].id : null
+    COGNITO_USER_POOL_ID = aws_cognito_user_pool.app_pool.id
+    COGNITO_CLIENT_ID    = aws_cognito_user_pool_client.app_client.id
+    COGNITO_DOMAIN       = aws_cognito_user_pool_domain.app_domain.domain
+    DOMAIN_NAME          = "insights.melvin-jones.com"
+    SSL_CERTIFICATE_ARN  = aws_acm_certificate_validation.insights_cert.certificate_arn
   }
   sensitive = false
 }

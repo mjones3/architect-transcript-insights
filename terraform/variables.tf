@@ -42,13 +42,13 @@ variable "allowed_ips" {
 variable "enable_cognito" {
   description = "Enable AWS Cognito for authentication"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "deploy_ec2" {
   description = "Deploy application on EC2 instance"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "instance_type" {
@@ -66,7 +66,7 @@ variable "key_pair_name" {
 variable "enable_alb" {
   description = "Enable Application Load Balancer"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "vpc_id" {
@@ -81,8 +81,41 @@ variable "public_subnet_ids" {
   default     = []
 }
 
+variable "ssh_allowed_ips" {
+  description = "List of IP addresses allowed for SSH access"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Restrict this in production
+}
+
+variable "app_port" {
+  description = "Application port"
+  type        = number
+  default     = 3000
+}
+
+variable "api_port" {
+  description = "API server port"
+  type        = number
+  default     = 3001
+}
+
+variable "enable_cloudwatch_agent" {
+  description = "Install and configure CloudWatch agent"
+  type        = bool
+  default     = true
+}
+
+variable "enable_ssl_redirect" {
+  description = "Force HTTPS redirect from HTTP"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Additional tags for resources"
   type        = map(string)
-  default     = {}
+  default     = {
+    Project = "ArchitectTranscriptInsights"
+    Owner   = "SolutionArchitect"
+  }
 }

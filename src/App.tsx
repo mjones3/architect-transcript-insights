@@ -1,23 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare, Info } from 'lucide-react';
+import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare, Info, Users } from 'lucide-react';
+import AuthGuard from './components/AuthGuard';
 import ProjectCheckboxes from './components/ProjectCheckboxes';
 import ProjectStatusBar from './components/ProjectStatusBar';
 import TranscriptPanel from './components/TranscriptPanel';
 import SummaryPanel from './components/SummaryPanel';
 import QueryPanel from './components/QueryPanel';
+import SpeakerManagement from './components/SpeakerManagement';
+import UserProfile from './components/UserProfile';
 import { TranscriptEntry, Project, MeetingSummary } from './types';
 import { startTranscription, stopTranscription } from './services/transcription';
 import { generateSummary, getClaudeProjects } from './services/ai';
 import { saveTranscript } from './services/storage';
+import { authService, AuthSession } from './services/auth';
 
-function App() {
+function MainApp() {
   const [isRecording, setIsRecording] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [summary, setSummary] = useState<MeetingSummary | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showSpeakerManagement, setShowSpeakerManagement] = useState(false);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const transcriptionRef = useRef<any>(null);
+
+  // Get current auth session on mount
+  useEffect(() => {
+    const getAuthSession = async () => {
+      const session = await authService.getCurrentSession();
+      setAuthSession(session);
+    };
+    getAuthSession();
+  }, []);
 
   // Load Claude Projects on component mount
   useEffect(() => {
@@ -102,6 +117,26 @@ function App() {
     return () => clearInterval(interval);
   }, [isRecording, transcript]);
 
+  const handleSpeakerCorrected = (entryId: string, newSpeakerId: string, newSpeakerName: string) => {
+    setTranscript(prev => prev.map(entry => 
+      entry.id === entryId 
+        ? { ...entry, speakerId: newSpeakerId, speaker: newSpeakerName }
+        : entry
+    ));
+  };
+
+  const handleSignOut = () => {
+    setAuthSession(null);
+    // Reset app state on sign out
+    setIsRecording(false);
+    setSelectedProjects([]);
+    setTranscript([]);
+    setSummary(null);
+    setProjects([]);
+    setIsSaving(false);
+    setShowSpeakerManagement(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -120,6 +155,22 @@ function App() {
               )}
             </div>
             <div className="flex items-center space-x-3">
+              {/* User Profile */}
+              {authSession && (
+                <UserProfile 
+                  session={authSession} 
+                  onSignOut={handleSignOut}
+                />
+              )}
+              
+              <button
+                onClick={() => setShowSpeakerManagement(true)}
+                className="flex items-center space-x-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                title="Manage speakers"
+              >
+                <Users className="h-4 w-4" />
+                <span>Speakers</span>
+              </button>
               <button
                 onClick={isRecording ? handleStopRecording : handleStartRecording}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -196,7 +247,10 @@ function App() {
               )}
             </div>
           </div>
-          <TranscriptPanel transcript={transcript} />
+          <TranscriptPanel 
+            transcript={transcript} 
+            onSpeakerCorrected={handleSpeakerCorrected}
+          />
         </div>
 
         {/* Middle Panel - Summary */}
@@ -221,7 +275,22 @@ function App() {
           <QueryPanel selectedProjects={selectedProjects} />
         </div>
       </main>
+
+      {/* Speaker Management Modal */}
+      <SpeakerManagement 
+        isOpen={showSpeakerManagement}
+        onClose={() => setShowSpeakerManagement(false)}
+      />
     </div>
+  );
+}
+
+// Main App wrapped with Authentication
+function App() {
+  return (
+    <AuthGuard>
+      <MainApp />
+    </AuthGuard>
   );
 }
 
