@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare, Info, Users } from 'lucide-react';
+import { Mic, MicOff, Save, X, Check, FileText, Brain, MessageSquare, Info, Users, Volume2 } from 'lucide-react';
 import AuthGuard from './components/AuthGuard';
 import ProjectCheckboxes from './components/ProjectCheckboxes';
 import ProjectStatusBar from './components/ProjectStatusBar';
@@ -8,6 +8,7 @@ import SummaryPanel from './components/SummaryPanel';
 import QueryPanel from './components/QueryPanel';
 import SpeakerManagement from './components/SpeakerManagement';
 import UserProfile from './components/UserProfile';
+import { AudioRecorder } from './components/AudioRecorder';
 import { TranscriptEntry, Project, MeetingSummary } from './types';
 import { startTranscription, stopTranscription } from './services/transcription';
 import { generateSummary, getClaudeProjects } from './services/ai';
@@ -23,7 +24,10 @@ function MainApp() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSpeakerManagement, setShowSpeakerManagement] = useState(false);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [audioBlobs, setAudioBlobs] = useState<Blob[]>([]);
   const transcriptionRef = useRef<any>(null);
+  const websocketRef = useRef<WebSocket | null>(null);
 
   // Get current auth session on mount
   useEffect(() => {
@@ -55,26 +59,34 @@ function MainApp() {
     }
   };
 
-  const handleStartRecording = async () => {
-    try {
-      setIsRecording(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      transcriptionRef.current = await startTranscription(stream, (entry: TranscriptEntry) => {
-        setTranscript(prev => [...prev, entry]);
-      });
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      setIsRecording(false);
-      alert('Failed to access microphone. Please ensure microphone permissions are granted.');
-    }
+  // Handle audio data from AudioRecorder
+  const handleAudioData = (audioBlob: Blob) => {
+    setAudioBlobs(prev => [...prev, audioBlob]);
+  };
+
+  // Handle real-time transcript data
+  const handleTranscriptData = (transcriptText: string) => {
+    const newEntry: TranscriptEntry = {
+      id: `transcript-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      text: transcriptText,
+      speaker: 'Unknown Speaker',
+      speakerId: 'unknown',
+      confidence: 0.8,
+      isPartial: false
+    };
+    setTranscript(prev => [...prev, newEntry]);
+  };
+
+  const handleStartRecording = () => {
+    setIsRecording(true);
+    setTranscript([]);
+    setSummary(null);
+    setAudioBlobs([]);
   };
 
   const handleStopRecording = async () => {
     setIsRecording(false);
-    if (transcriptionRef.current) {
-      await stopTranscription(transcriptionRef.current);
-      transcriptionRef.current = null;
-    }
     
     // Generate summary when recording stops
     if (transcript.length > 0) {
@@ -172,26 +184,6 @@ function MainApp() {
                 <span>Speakers</span>
               </button>
               <button
-                onClick={isRecording ? handleStopRecording : handleStartRecording}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                  isRecording
-                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                }`}
-              >
-                {isRecording ? (
-                  <>
-                    <MicOff className="h-5 w-5" />
-                    <span>Stop Recording</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="h-5 w-5" />
-                    <span>Start Recording</span>
-                  </>
-                )}
-              </button>
-              <button
                 onClick={handleSaveAndClose}
                 disabled={transcript.length === 0 || isSaving || selectedProjects.length === 0}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
@@ -233,24 +225,43 @@ function MainApp() {
 
       {/* Main Content */}
       <main className="flex h-[calc(100vh-120px)]">
-        {/* Left Panel - Transcript */}
-        <div className="w-1/3 border-r bg-white">
+        {/* Left Panel - Audio Recording */}
+        <div className="w-1/3 border-r bg-white flex flex-col">
           <div className="p-4 border-b bg-gray-50">
             <div className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-800">Live Transcript</h2>
+              <Volume2 className="h-5 w-5 text-gray-600" />
+              <h2 className="text-lg font-semibold text-gray-800">Audio Recording</h2>
               {isRecording && (
                 <span className="flex items-center space-x-1 text-sm text-red-500">
                   <span className="animate-pulse">●</span>
-                  <span>Recording</span>
+                  <span>Live</span>
                 </span>
               )}
             </div>
           </div>
-          <TranscriptPanel 
-            transcript={transcript} 
-            onSpeakerCorrected={handleSpeakerCorrected}
-          />
+          
+          {/* Audio Recorder Component */}
+          <div className="p-4 flex-shrink-0">
+            <AudioRecorder 
+              onAudioData={handleAudioData}
+              onTranscriptData={handleTranscriptData}
+              isConnected={isWebSocketConnected}
+            />
+          </div>
+          
+          {/* Transcript Display */}
+          <div className="flex-1 overflow-hidden">
+            <div className="p-4 border-b bg-gray-50">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="h-4 w-4 text-gray-600" />
+                <h3 className="text-md font-medium text-gray-800">Live Transcript</h3>
+              </div>
+            </div>
+            <TranscriptPanel 
+              transcript={transcript} 
+              onSpeakerCorrected={handleSpeakerCorrected}
+            />
+          </div>
         </div>
 
         {/* Middle Panel - Summary */}
