@@ -93,3 +93,23 @@ curl http://architect-transcript-alb-343036505.us-east-1.elb.amazonaws.com/healt
 - [ ] Verify real-time transcription works
 - [ ] Add authentication flow
 
+
+## Session 2025-11-23 13:51
+- **Change**: Successfully deployed Python-based API server to EC2 with working health endpoints
+- **Commit**: 8ea061c6b03073ecc743d16b45175bcc35ebe9ee
+- **Status**: Development in progress
+- **Files modified**: 
+
+### Current State
+- Infrastructure: Deployed and operational
+- Application: Full Node.js app ready
+- Load Balancer: http://architect-transcript-alb-343036505.us-east-1.elb.amazonaws.com
+- Target Health: 200
+
+### TODO for Next Session
+- [ ] Deploy full transcript application (not just placeholder)
+- [ ] Add API keys (ANTHROPIC_API_KEY, CLAUDE_PROJECT_IDS)
+- [ ] Test audio recording and WebSocket features
+- [ ] Verify real-time transcription works
+- [ ] Add authentication flow
+
