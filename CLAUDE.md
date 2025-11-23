@@ -11,6 +11,13 @@ This is a real-time meeting transcription and AI insights platform for AWS Solut
 - **S3 Bucket**: architect-transcripts-294417223953-prod
 - **Domain**: insights.melvin-jones.com (SSL cert ready, not yet configured)
 
+## GitHub CI/CD Configuration
+- **Repository**: https://github.com/mjones3/architect-transcript-insights
+- **Actions**: https://github.com/mjones3/architect-transcript-insights/actions
+- **Secrets Configured**: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, EC2_PRIVATE_KEY
+- **Auto-deployment**: ✅ Active on push to main branch
+- **GitHub Token**: Saved in ~/.bash_profile for future sessions
+
 ## Known Issues & TODOs
 - [ ] Node.js 18 incompatible with Amazon Linux 2 (glibc version issue)
 - [ ] Full application not deployed (only placeholder running)
@@ -97,6 +104,26 @@ curl http://architect-transcript-alb-343036505.us-east-1.elb.amazonaws.com/healt
 ## Session 2025-11-23 13:51
 - **Change**: Successfully deployed Python-based API server to EC2 with working health endpoints
 - **Commit**: 8ea061c6b03073ecc743d16b45175bcc35ebe9ee
+- **Status**: Development in progress
+- **Files modified**: 
+
+### Current State
+- Infrastructure: Deployed and operational
+- Application: Full Node.js app ready
+- Load Balancer: http://architect-transcript-alb-343036505.us-east-1.elb.amazonaws.com
+- Target Health: 200
+
+### TODO for Next Session
+- [ ] Deploy full transcript application (not just placeholder)
+- [ ] Add API keys (ANTHROPIC_API_KEY, CLAUDE_PROJECT_IDS)
+- [ ] Test audio recording and WebSocket features
+- [ ] Verify real-time transcription works
+- [ ] Add authentication flow
+
+
+## Session 2025-11-23 17:06
+- **Change**: GitHub repository created and fully configured with CI/CD pipeline
+- **Commit**: 18b9a0cefeb334663e5d668c580eac3d5f66c46a
 - **Status**: Development in progress
 - **Files modified**: 
 
