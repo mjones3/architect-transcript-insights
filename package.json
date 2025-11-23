@@ -27,7 +27,7 @@
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
-    "amazon-cognito-identity-js": "^6.5.0",
+    "amazon-cognito-identity-js": "^6.3.0",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.13.2",
     "cors": "^2.8.5",
